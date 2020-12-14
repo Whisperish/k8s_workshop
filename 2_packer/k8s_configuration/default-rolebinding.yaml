@@ -1,0 +1,40 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: service-reader
+rules:
+- apiGroups: ["","k8s.nginx.org","extensions","networking.k8s.io","appprotect.f5.com"] # "" indicates the core API group
+  resources: ["secrets","ingresses","services","virtualservers","virtualserverroutes","transportservers","endpoints","pods","events","policies","configmaps","ingressclasses"]
+  verbs: ["get", "watch", "list","create","patch","update"]
+  
+  
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  managedFields:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:roleRef:
+        f:apiGroup: {}
+        f:kind: {}
+        f:name: {}
+      f:subjects: {}
+    manager: kubectl
+    operation: Update
+    time: "2020-05-23T10:04:29Z"
+  name: service-reader-pod
+  selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/service-reader-pod
+  uid: 9ce6920b-75cb-4e6e-a30b-905bc3950b71
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: service-reader
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+

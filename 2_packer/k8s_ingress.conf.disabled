@@ -1,0 +1,18 @@
+
+    upstream appservers {          
+        zone backend 64k;
+        server 192.168.1.30:32443;
+        server 192.168.1.40:32443;
+        server 192.168.1.50:32443;
+    }
+    
+    stream {
+    # Location that proxies requests to the upstream group
+        listen 8443 tcp;
+        location / {
+            #proxy_ssl_verify off;
+            #proxy_ssl_trusted_certificate /home/owner/fullchain.pem;
+            proxy_pass appservers;
+            health_check;
+         }
+    }

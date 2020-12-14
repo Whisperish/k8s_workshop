@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-ingress
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-ingress
+  template:
+    metadata:
+      labels:
+        app: nginx-ingress
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9113"
+    spec:
+      containers:
+      - image: dockerregistry.workshop0001.nginxdemo.net:443/nginx-plus-ingress:1.9.0
+        imagePullPolicy: Always
+        name: nginx-plus-ingress
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+        - name: dashboard
+          containerPort: 8088
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nginx/conf.d/dash.conf
+          subPath: dash.conf
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        args:
+          - -nginx-plus
+          - -default-server-tls-secret=default/default-server-secret
+          - -enable-app-protect
+          #- -report-ingress-status
+          #- -external-service=nginx-ingress
+          #- -enable-leader-election
+          #- -nginx-configmaps=$(POD_NAMESPACE)/nginx-config
+          #- -v=3 # Enables extensive logging. Useful for troubleshooting.
+          #- -enable-prometheus-metrics
+          #- -global-configuration=$(POD_NAMESPACE)/nginx-configuration
+      - image: nginx/nginx-prometheus-exporter:0.2.0
+        name: nginx-prometheus-exporter
+        ports:
+        - name: prometheus
+          containerPort: 9113
+        args:
+          - -web.listen-address
+          - :9113
+          - -nginx.plus
+          - -nginx.scrape-uri
+          - http://127.0.0.1:8080/api
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-plus-ingress-conf

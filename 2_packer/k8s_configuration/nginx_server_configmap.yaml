@@ -1,0 +1,76 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginxplus
+data:
+  nginx.conf: |
+    worker_processes 5;
+    events {}
+    http {
+
+      server {
+        server_name k8s.io;
+        listen 80;
+        location / {
+          add_header Content-Type text/html;
+
+          return 200   '<html><font size="7" face="Visiby Round">NGINX Server: <b>$server_addr</b> responding.
+                        <br>My hostname is: <b>$hostname</b>
+                        <br><br><input type="checkbox" onclick="toggleAutoRefresh(this);" id="reloadCB"> Auto Refresh every two seconds
+                        <script>
+                        <!--
+                        var reloading;
+                        function checkReloading() {
+                            if (window.location.hash=="#autoreload") {
+                                reloading=setTimeout("window.location.reload();", 2000);
+                                document.getElementById("reloadCB").checked=true;
+                            }
+                        }
+                        function toggleAutoRefresh(cb) {
+                            if (cb.checked) {
+                                window.location.replace("#autoreload");
+                                reloading=setTimeout("window.location.reload();", 2000);
+                            } else {
+                                window.location.replace("#");
+                                clearTimeout(reloading);
+                            }
+                        }
+                        window.onload=checkReloading;
+                        //   -->
+                        </script>';
+        }
+      }
+
+      server {
+        listen 8080;
+
+
+        location /api/ {
+          # Enable in read-write mode
+          api write=on;
+
+          # Uncomment to further restrict write permissions; see note above
+          #limit_except GET {
+              #auth_basic "NGINX Plus API";
+              #auth_basic_user_file /etc/nginx/admins;
+          #}
+        }
+
+        # Conventional location of the NGINX Plus dashboard
+        location = /dashboard.html {
+          root /usr/share/nginx/html;
+        }
+
+        # Redirect requests for "/" to "/dashboard.html"
+        location / {
+          return 301 /dashboard.html;
+        }
+
+        # Redirect requests for pre-R14 dashboard
+        location /status.html {
+          return 301 /dashboard.html;
+        }
+
+      }
+    }

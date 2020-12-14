@@ -1,0 +1,387 @@
+{
+  "description": "Create a base CentOS 8 machine running docker that can be used for both k8s master and k8s worker nodes",
+  "variables": {
+    "home": "{{env `HOME`}}",
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "region": "eu-west-2"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "name": "k8s-base-docker-machine",
+      "ami_name": "k8s-base-docker-machine {{isotime \"2006-01-02\"}}{{uuid}}",
+      "instance_type": "t2.large",
+      "region": "{{user `region`}}",
+      "source_ami": "ami-0f70e886859c0228d",
+      "ssh_username": "centos",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "tags": {
+        "Name": "workshop0001.k8s-base-machine"
+      }
+    },
+    {
+      "type": "amazon-ebs",
+      "name": "workshop0001-north-south-router",
+      "ami_name": "workshop0001-nginx-plus {{isotime \"2006-01-02\"}} {{uuid}}",
+      "instance_type": "t2.micro",
+      "region": "{{user `region`}}",
+      "source_ami": "ami-00108fa4bd389cbd2",
+      "ssh_username": "ubuntu",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "tags": {
+        "Name": "workshop0001.north-south-router"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "{{user `home`}}/.ssh/ngx-certs",
+      "destination": "certs",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "build_nginx_plus_images.sh",
+      "destination": "build_nginx_plus_images.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "build_nginx_plus_ingress_controller_image.sh",
+      "destination": "build_nginx_plus_ingress_controller_image.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "#mkdir certs"
+      ],
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "../certs/",
+      "destination": "certs",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+
+    {
+      "type": "file",
+      "source": "hosts",
+      "destination": "hosts",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "install-kubernetes-master.sh",
+      "destination": "install-kubernetes-master.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+     {
+      "type": "file",
+      "source": "setup_selinux_and_fw.sh",
+      "destination": "setup_selinux_and_fw.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "install_docker.sh",
+      "destination": "install_docker.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "setup_registry.sh",
+      "destination": "setup_registry.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "Dockerfile",
+      "destination": "Dockerfile",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "#sudo -H dnf update -y",
+		"#sudo dnf install firewalld -y",
+		"#sudo systemctl enable firewalld",
+		"#sudo systemctl start firewalld",
+		"sudo cat hosts /etc/hosts",
+		"sudo sh setup_selinux_and_fw.sh",
+		"sudo sh install_docker.sh",
+		"sudo dnf install bind-utils -y",
+		
+        "#sudo -H apt install -y python-pip",
+        "#sudo -H pip install ansible",
+		
+		
+		"ssh-keygen -f /tmp/sshkey -q -N ''",
+		"chmod +r /tmp/sshkey",
+		"mkdir k8s_configuration"
+      ],
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+   {
+      "type": "file",
+      "destination": "{{user `home`}}/.ssh/k8s-key.pub",
+      "source": "/tmp/sshkey.pub",
+	  "direction" : "download",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+   {
+      "type": "file",
+      "destination": "{{user `home`}}/.ssh/k8s-key.pem",
+      "source": "/tmp/sshkey",
+	  "direction" : "download",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+   {
+      "type": "file",
+      "destination": "../3_terraform/k8s-key.pem",
+      "source": "/tmp/sshkey",
+	  "direction" : "download",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+
+   {
+      "type": "file",
+      "destination": "keys/k8s-key.pem",
+      "source": "/tmp/sshkey",
+	  "direction" : "download",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "k8s_configuration",
+      "destination": "k8s_configuration",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+	{
+      "type": "file",
+      "source": "kubeadm.config",
+      "destination": "kubeadm.config",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+ 
+		"echo '---------------------------------------------------------------------'",
+		"echo '------------- DOWNLOADING NGINX SERVICE MESH PACKAGES ---------------'",
+		"echo '---------------------------------------------------------------------'",
+		"curl https://emea-terraform-and-packer.s3.eu-west-2.amazonaws.com/nginx-meshctl_linux.gz --output nginx-meshctl_linux.gz",
+        "curl https://emea-terraform-and-packer.s3.eu-west-2.amazonaws.com/nginx-mesh-images-0.6.0.tar.gz --output nginx-mesh-images-0.6.0.tar.gz"
+      ],
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+	{
+      "type": "file",
+      "source": "setup-service-mesh-registry-images.sh",
+      "destination": "setup-service-mesh-registry-images.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+	{
+      "type": "file",
+      "source": "install_NGINX_Service_Mesh.sh",
+      "destination": "install_NGINX_Service_Mesh.sh",
+      "only": [
+        "k8s-base-docker-machine"
+      ]
+    },
+
+
+    {
+      "type": "file",
+      "source": "{{user `home`}}/.ssh/ngx-certs",
+      "destination": "~/.ssh/ngx-certs",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+	    {
+      "type": "file",
+      "source": "k8s_api_discover.conf",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "default.conf",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "dummy_healthcheck.conf",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "k8s_api_discover.js",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "k8s_ingress.conf.disabled",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "nginx.conf",
+      "destination": "~/",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "#sudo -H apt-get update -y",
+		"#sudo -H apt-get upgrade -y",
+        "#sudo -H apt-get update -y",
+		"echo '---------------------------------------------------------------------'",
+		"echo '--------------- INSTALLING PYTHON-PIP PACKAGE MANAGER ---------------'",
+		"echo '---------------------------------------------------------------------'",
+		"sudo -H apt-get update -y",
+        "#sudo -H apt-get install -y python-pip",
+		"#sudo add-apt-repository universe -y",
+		"#sudo apt-get install -y python2",
+		"#sudo python2 get-pip.py",
+		"sudo apt install python3-pip -y",
+		"echo '---------------------------------------------------------------------'",
+		"echo '------------------------- INSTALLING ANSIBLE ------------------------'",
+		"echo '---------------------------------------------------------------------'",
+        "sudo -H pip3 install ansible",
+		"ssh-keygen -f /tmp/sshkey -q -N ''",
+		"chmod +r /tmp/sshkey"
+      ],
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+   {
+      "type": "file",
+      "destination": "{{user `home`}}/.ssh/north-south-router-key.pub",
+      "source": "/tmp/sshkey.pub",
+	  "direction" : "download",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+   {
+      "type": "file",
+      "destination": "{{user `home`}}/.ssh/north-south-router-key.pem",
+      "source": "/tmp/sshkey",
+	  "direction" : "download",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },		
+    {
+      "type": "ansible-local",
+      "galaxy_file": "requirements.yml",
+      "playbook_file": "playbook-lb.yml",
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+	
+    {
+      "type": "shell",
+      "inline": [
+        "#sudo -H apt update -y",
+        "#sudo -H apt update -y",
+        "sudo apt-get install nginx-plus-module-njs",
+	    "#sudo apt upgrade -y"
+      ],
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },	
+	
+	    {
+      "type": "shell",
+      "inline": [
+        "sudo cp k8s_api_discover.conf     /etc/nginx/conf.d",
+        "sudo cp default.conf              /etc/nginx/conf.d",
+        "sudo cp dummy_healthcheck.conf    /etc/nginx/conf.d",
+	    "sudo cp k8s_api_discover.js       /etc/nginx/conf.d",
+		"sudo cp k8s_ingress.conf.disabled /etc/nginx/conf.d",
+		"sudo cp nginx.conf                /etc/nginx/",
+		"#sudo nginx -s reload"
+      ],
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "keys/k8s-key.pem",
+      "destination": "k8s-key.pem",
+	  "generated" : true,
+      "only": [
+        "workshop0001-north-south-router"
+      ]
+    }
+
+  ]
+}
